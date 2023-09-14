@@ -1,0 +1,22 @@
+[
+  "text",
+  1,
+  null,
+  true,
+  {
+    "key": "value"
+  },
+  {
+    "@default": [
+      "default",
+      {
+        "--foo": "foo",
+        "--fii": "fii"
+      }
+    ],
+    "@conf1": {
+      "--foo": "conf1_foo",
+      "--fii": "conf1_fii"
+    }
+  }
+]

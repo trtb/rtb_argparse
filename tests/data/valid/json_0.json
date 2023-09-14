@@ -1,0 +1,16 @@
+[
+  "text",
+  {
+    "--foo": "foo"
+  },
+  {
+    "@default": {
+      "--conf": "default",
+      "--fii": "fii"
+    },
+    "@conf1": {
+      "--conf": "conf1",
+      "--fii": "conf1_fii"
+    }
+  }
+]

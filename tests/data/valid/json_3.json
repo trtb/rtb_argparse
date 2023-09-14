@@ -1,0 +1,14 @@
+{
+  "--arg1": "arg1",
+  "@default": [
+    "default",
+    {
+      "--foo": "foo",
+      "--fii": "fii"
+    }
+  ],
+  "@conf1": {
+    "--foo": "conf1_foo",
+    "--fii": "conf1_fii"
+  }
+}
