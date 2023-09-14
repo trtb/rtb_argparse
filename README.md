@@ -1,5 +1,14 @@
 # rtb_argparse
 
+## Introduction
+
+A simple solution to enable argparse to read your data from any file format (json, txt ...). The only constraint is to 
+define the parser for your file and give it to ArgparseConfig, which extends Argparse.
+In addition to ArgparseConfig, the library also offers:
+- parsers already defined for json and txt formats
+- new argparse.Formatter 
+- "checkers" to evaluate the inputs of each argument
+
 ## Installation
 
 ```bash
