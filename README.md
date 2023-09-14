@@ -78,17 +78,25 @@ In addition to ArgparseConfig, the library also offers:
 - new argparse.Formatter 
 - "checkers" to evaluate the inputs of each argument
 
-NB: You can find and test the README.md examples in: [notebook/readme_example.ipynb](notebook/readme_example.ipynb)
+NB: You can find and test the README.md examples in: [notebook/readme_examples.ipynb](notebook/readme_examples.ipynb)
 
 ## Installation
 
+- Normal:
 ```bash
 git clone git@github.com:trtb/rtb_argparse.git
 cd rtb_argparse/
 pip install .
 ```
 
-## config module: introduction
+- Developer mode:
+```bash
+git clone git@github.com:trtb/rtb_argparse.git
+cd rtb_argparse/
+pip install -e .
+```
+
+## Config module: Introduction
 
 `rtb_argparse.config` implements the `ArgparseConfig` class, which is the heart of rtb_argparse. It adds a 
 `file_parser` argument to argparse which defines a parser for the files given as arguments 
@@ -134,7 +142,7 @@ print(opt.foo, opt.fii, opt.numbers)
 >> hello world! [0, 1, 2, 3]
 ```
 
-## config module: implemented parsers
+## Config module: Implemented parsers
 
 - `config.default_file_parser`:
 
@@ -142,7 +150,7 @@ This parser reuses the traditional argparse code for reading arguments from a fi
 `convert_arg_line_to_args` function so that it splits arguments on spaces (default behavior) but also on new lines.
 This is the default parser used by the class `ArgparseConfig`.
 
-## config module: implemented config parsers
+## Config module: Implemented config parsers
 
 The idea behind `config parsers` is to allow you to specify a particular configuration to be read from data files via 
 the `fromfile_prefix_chars` option of argparse.  
@@ -196,7 +204,7 @@ Example of accepted file:
 ]
 ```
 
-## formatters
+## Formatters module
 
 Argparse formatters provided by the library:
 
@@ -210,7 +218,7 @@ option does not have a help string.
 Derived from `formaters.ArgumentDefaultsHelpFormatter`, `argparse.RawDescriptionHelpFormatter` 
 and `argparse.RawTextHelpFormatter`.
 
-## checkers
+## Checkers module
 
 When adding an argument to argparse, it is common to use a lambda through the `type` parameter of `add_argrument` to 
 evaluate the argument given as input. Checkers are simply a set of functions that can be used in these lambdas to 
