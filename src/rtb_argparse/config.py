@@ -164,15 +164,24 @@ class ParserConfig(Parser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        section = None
+        config = None
         with open(self.filename) as config_file:
             for line in filter(None, config_file.read().splitlines()):
+                # Remove comment from the file
+                line = line.split("#", 1)[0]
+                if len(line) == 0:
+                    continue
+
+                # Handle config
                 if line[0] == self.prefix_chars:
-                    section, line = line[1:].split(" ", 1)
-                    section = section.strip()
-                    if section in self.config:
-                        self.config[section] = True
-                if section is None or section in self.config:
+                    config, *tmp_line = line[1:].split(" ", 1)
+                    line = tmp_line[0] if len(tmp_line) else ""
+                    config = config.strip()
+                    if config in self.config:
+                        self.config[config] = True
+
+                # Read argument from the config
+                if config is None or config in self.config:
                     for arg in convert_arg_line_to_args(line):
                         self.ret_strings.append(arg)
 
