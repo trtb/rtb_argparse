@@ -3,11 +3,82 @@
 ## Introduction
 
 A simple solution to enable argparse to read your data from any file format (json, txt ...). The only constraint is to 
-define the parser for your file and give it to ArgparseConfig, which extends Argparse.
+define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
+
+To illustrate this, a small example using the parser `json_config_parser` provided by the library:
+
+We start by declaring our parser as we're used to with argparse, but including our file parser 
+(`file_parser=json_config_parser`):
+
+```python
+from rtb_argparse.config import ArgparseConfig, json_config_parser
+
+parser = ArgparseConfig(fromfile_prefix_chars="@", file_parser=json_config_parser)
+parser.add_argument('arg1', type=str)
+parser.add_argument("--foo", type=str)
+parser.add_argument("--name", type=str)
+```
+
+Now let's create a json file and call it `myfile.json`
+
+```json
+[
+  "text",
+  {
+    "--foo": "foo",
+    "--name": "myname"
+  }
+]
+```
+
+And the result:
+
+```python
+opt = parser.parse_args(["@myfile.json"])
+print(opt.arg1, opt.foo, opt.name)
+>> text foo myname
+```
+
+Since we can define the behaviors we want when parsing the file, we can do a bit more complex things, for example let's 
+see what `json_config_parser` can do with this file:
+
+```json
+[
+  "text",
+  {
+    "@default": {
+      "--foo": "foo",
+      "--name": "myname"
+    },
+    "@conf1": {
+      "--foo": "oof",
+      "--name": "conf1"
+    }
+  }
+]
+```
+
+With `@default` we have declared a default configuration, and with `@conf1` we have declared a second possible 
+configuration.
+
+```python
+opt = parser.parse_args(["@myfile.json"]) # we do not specify a configuration, so default will be used
+print(opt.arg1, opt.foo, opt.name)
+>> text foo myname
+```
+
+```python
+opt = parser.parse_args(["@myfile.json@conf1"]) # by adding @conf1, conf1 will be used instead of default 
+print(opt.arg1, opt.foo, opt.name)
+>> text oof conf1
+```
+
 In addition to ArgparseConfig, the library also offers:
 - parsers already defined for json and txt formats
 - new argparse.Formatter 
 - "checkers" to evaluate the inputs of each argument
+
+NB: You can find and test the README.md examples in: [notebook/readme_example.ipynb](notebook/readme_example.ipynb)
 
 ## Installation
 
@@ -24,7 +95,7 @@ pip install .
 via the `fromfile_prefix_chars` parameter.
 
 The parser must be a function that takes a file name as input, and returns a list of strings as output. For example, 
-you can easily create a parser for simple json files: 
+you can create a parser for simple json files: 
 
 ```python
 import json
@@ -43,14 +114,7 @@ def json_file_parser(arg_string):
 
 To use it, simply give it as an argument to our parser:
 
-```python
-from trtb_argparse.config import ArgparseConfig
-parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=json_file_parser)
-```
-
-We can then declare our parser as we usually do with argparse and finally test it:
-
-- test.jon:
+- test.json:
 ```json
 {
    "--numbers": [0, 1, 2, 3],
@@ -59,43 +123,15 @@ We can then declare our parser as we usually do with argparse and finally test i
 ```
 
 ```python
+from trtb_argparse.config import ArgparseConfig
+parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=json_file_parser)
 parser.add_argument('--foo', type=str)
 parser.add_argument('--numbers', type=int, nargs='+')
 parser.add_argument('--fii', type=str)
 opt = parser.parse_args(["--foo", "hello", "@test.json"])
+
 print(opt.foo, opt.fii, opt.numbers)
 >> hello world! [0, 1, 2, 3]
-```
-
-## config module: choose your configuration
-
-The advantage of defining the parsing function yourself is that you can pass parameters to it through the argument you 
-give it as input. One example is the `config.json_config_parser` parser, which lets you select a sub-configuration in a 
-json file:
-
-- test.json
-```json
-[
-  "text",
-  {"--foo":  "foo"},
-  {
-    "@default": {
-      "--conf": "default",
-      "--fii": "fii"
-    },
-    "@conf1": {
-      "--conf": "conf1",
-      "--fii": "conf1_fii"
-    }
-  }
-]
-```
-
-```python
-print(json_config_parser("@test.json"))
->> ['text', '--foo', 'foo', '--conf', 'default', '--fii', 'fii']
-print(json_config_parser("@test.json@conf1"))
->> ['text', '--foo', 'foo', '--conf', 'conf1', '--fii', 'conf1_fii']
 ```
 
 ## config module: implemented parsers
@@ -106,9 +142,9 @@ This parser reuses the traditional argparse code for reading arguments from a fi
 `convert_arg_line_to_args` function so that it splits arguments on spaces (default behavior) but also on new lines.
 This is the default parser used by the class `ArgparseConfig`.
 
-### Config
+## config module: implemented config parsers
 
-The idea behind `config` parsers is to allow you to specify a particular configuration to be read from data files via 
+The idea behind `config parsers` is to allow you to specify a particular configuration to be read from data files via 
 the `fromfile_prefix_chars` option of argparse.  
 When you enter the file name in the command line, you can specify one or more configurations using the `prefix_chars` 
 character (if not specified, it defaults to `fromfile_prefix_chars`), for example: `@myfile@config1@config3`.
@@ -123,6 +159,7 @@ configurations via an argument. A configuration in the file is declared when a l
 character followed by the configuration name, for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this 
 configuration until you reach a new one.
 
+Example of accepted file:
 ```txt
 arg0
 --arg arg1
@@ -141,6 +178,7 @@ Configurations are declared in the json by a key / value pair, where the key is 
 example: `"@config1": ... `. Any data outside a configuration will be used, and any data in one of the configurations 
 given as an argument will also be used. Data in an unspecified configuration will therefore be ignored.
 
+Example of accepted file:
 ```json
 [
   "text",
@@ -168,6 +206,7 @@ Modification of the argparse.ArgumentDefaultsHelpFormatter, it displays the defa
 option does not have a help string.
 
 - `formaters.Formatter`:
+
 Derived from `formaters.ArgumentDefaultsHelpFormatter`, `argparse.RawDescriptionHelpFormatter` 
 and `argparse.RawTextHelpFormatter`.
 
