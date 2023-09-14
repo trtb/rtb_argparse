@@ -78,7 +78,7 @@ In addition to ArgparseConfig, the library also offers:
 - new argparse.Formatter 
 - "checkers" to evaluate the inputs of each argument
 
-NB: You can find and test the README.md examples in: [notebook/readme_examples.ipynb](notebook/readme_examples.ipynb)
+NB: You can find and test the README.md examples in: [notebooks/readme_examples.ipynb](notebooks/readme_examples.ipynb)
 
 ## Installation
 
@@ -96,7 +96,9 @@ cd rtb_argparse/
 pip install -e .
 ```
 
-## Config module: Introduction
+## Config module
+
+### Introduction
 
 `rtb_argparse.config` implements the `ArgparseConfig` class, which is the heart of rtb_argparse. It adds a 
 `file_parser` argument to argparse which defines a parser for the files given as arguments 
@@ -142,7 +144,7 @@ print(opt.foo, opt.fii, opt.numbers)
 >> hello world! [0, 1, 2, 3]
 ```
 
-## Config module: Implemented parsers
+### Implemented parsers
 
 - `config.default_file_parser`:
 
@@ -150,7 +152,7 @@ This parser reuses the traditional argparse code for reading arguments from a fi
 `convert_arg_line_to_args` function so that it splits arguments on spaces (default behavior) but also on new lines.
 This is the default parser used by the class `ArgparseConfig`.
 
-## Config module: Implemented config parsers
+### Implemented config parsers
 
 The idea behind `config parsers` is to allow you to specify a particular configuration to be read from data files via 
 the `fromfile_prefix_chars` option of argparse.  
