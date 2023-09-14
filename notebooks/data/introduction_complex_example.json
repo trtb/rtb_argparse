@@ -1,0 +1,13 @@
+[
+  "text",
+  {
+    "@default": {
+      "--foo": "foo",
+      "--name": "myname"
+    },
+    "@conf1": {
+      "--foo": "oof",
+      "--name": "conf1"
+    }
+  }
+]

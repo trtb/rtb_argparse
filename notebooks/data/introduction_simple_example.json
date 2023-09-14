@@ -1,0 +1,7 @@
+[
+  "text",
+  {
+    "--foo": "foo",
+    "--name": "myname"
+  }
+]
