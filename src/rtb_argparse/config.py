@@ -83,22 +83,21 @@ class Parser:
         """
         self.prefix_chars = arg_string[0] if prefix_chars is None else prefix_chars[0]
         self.filename = arg_string[1:]
-        self.config_valid = True
-        self.config = ["default"]
+        self.config = {"default": True}
         self.ret_strings = []
 
         if self.prefix_chars in self.filename:
-            self.filename, *self.config = self.filename.split(self.prefix_chars)
-            self.config_valid = False
+            self.filename, *config = self.filename.split(self.prefix_chars)
+            self.config = {c: False for c in config}
 
         if verbose:
-            print("Reading args from '{}' with config '{}'".format(self.filename, self.config))
+            print("Reading args from '{}' with config '{}'".format(self.filename, list(self.config.keys())))
 
     def get_args(self) -> List[str]:
         """ Test if the required config as been found during parsing and return the result of the parsing """
-        if not self.config_valid:
-            raise argparse.ArgumentTypeError("Required config: '{}' not found in '{}'".format(self.config,
-                                                                                              self.filename))
+        if not all(valid for valid in self.config.values()):
+            missing = ", ".join([k for k, v in self.config.items() if not v])
+            raise argparse.ArgumentTypeError("Required config: '{}' not found in '{}'".format(missing, self.filename))
         return self.ret_strings
 
 
@@ -128,9 +127,10 @@ class ParserJson(Parser):
         if isinstance(element, dict):
             for k, v in element.items():
                 if k[0] == self.prefix_chars:
-                    if k[1:].strip() in self.config:
+                    config_name = k[1:].strip()
+                    if config_name in self.config:
                         self.parse_element(v)
-                        self.config_valid = True
+                        self.config[config_name] = True
                 else:
                     self.ret_strings.append(k)
                     self.parse_element(v)
@@ -171,7 +171,7 @@ class ParserConfig(Parser):
                     section, line = line[1:].split(" ", 1)
                     section = section.strip()
                     if section in self.config:
-                        self.config_valid = True
+                        self.config[section] = True
                 if section is None or section in self.config:
                     for arg in convert_arg_line_to_args(line):
                         self.ret_strings.append(arg)
