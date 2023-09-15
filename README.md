@@ -2,11 +2,19 @@
 
 ## Introduction
 
-`rtb_argparse` is a solution to enable argparse to read your arguments from any file format (json, txt ...). The only 
-constraint is to define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
+`rtb_argparse` is a solution enabling argparse to use `fromfile_prefix_chars` on any file format (json, txt ...). The 
+only constraint is to define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
 
-To illustrate this, here's an example using the `ParserJson().parser` provided by the library. We start by 
-declaring our parser as we're used to with argparse, but including our json parser (`file_parser=ParserJson().parser`):
+The library consists of 3 modules:
+- [Config Module](#config-module): `ArgparseConfig` and already defined parsers for json and txt formats
+- [Formatters Module](#formatters-module): New formatters for argparse
+- [Checkers Module](#checkers-module): Functions to evaluate the input of an argument threw `type` parameter
+
+## Simple example
+
+To illustrate how `ArgparseConfig` works, here's an example using the `ParserJson().parser` provided by the library. 
+We start by declaring our parser as we're used to with argparse, but including our json parser 
+(`file_parser=ParserJson().parser`):
 
 ```python
 from rtb_argparse.config import ArgparseConfig, ParserJson
@@ -17,7 +25,7 @@ parser.add_argument("--foo", type=str)
 parser.add_argument("--name", type=str)
 ```
 
-Now let's create a json file and call it `myfile.json`
+Now let's create a json file and call it `myfile.json`:
 
 ```json
 [
@@ -70,11 +78,6 @@ opt = parser.parse_args(["@myfile.json@conf1"]) # by adding @conf1, conf1 will b
 print(opt.arg1, opt.foo, opt.name)
 >> text oof conf1
 ```
-
-In addition to `ArgparseConfig`, the library also offers:
-- parsers already defined for json and txt formats
-- new argparse.Formatter 
-- "checkers" to evaluate the inputs of each argument
 
 NB: You can find and test the README.md examples in: [notebooks/readme_examples.ipynb](notebooks/readme_examples.ipynb)
 
