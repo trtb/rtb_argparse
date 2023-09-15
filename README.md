@@ -2,11 +2,11 @@
 
 ## Introduction
 
-`rtb_argparse` is a solution to enable argparse to read your data from any file format (json, txt ...). The only 
+`rtb_argparse` is a solution to enable argparse to read your arguments from any file format (json, txt ...). The only 
 constraint is to define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
 
-To illustrate this, here's an example using the `json_config_parser` parser provided by the library. We start by 
-declaring our parser as we're used to with argparse, but including our file parser (`file_parser=json_config_parser`):
+To illustrate this, here's an example using the `ParserJson().parser` provided by the library. We start by 
+declaring our parser as we're used to with argparse, but including our json parser (`file_parser=ParserJson().parser`):
 
 ```python
 from rtb_argparse.config import ArgparseConfig, ParserJson
@@ -38,7 +38,7 @@ print(opt.arg1, opt.foo, opt.name)
 ```
 
 Since we can define the behaviors we want when parsing the file, we can do a bit more complex things, for example let's 
-see what `json_config_parser` can do with this file:
+see what `ParserJson().parser` can do with this file:
 
 ```json
 [
@@ -71,7 +71,7 @@ print(opt.arg1, opt.foo, opt.name)
 >> text oof conf1
 ```
 
-In addition to ArgparseConfig, the library also offers:
+In addition to `ArgparseConfig`, the library also offers:
 - parsers already defined for json and txt formats
 - new argparse.Formatter 
 - "checkers" to evaluate the inputs of each argument
@@ -210,8 +210,8 @@ Argparse formatters provided by the library:
 
 - `formaters.ArgumentDefaultsHelpFormatter`: 
 
-Modification of the argparse.ArgumentDefaultsHelpFormatter, it displays the default value of each option even if an 
-option does not have a help string.
+Modification of the argparse.ArgumentDefaultsHelpFormatter, it displays the default value of each argument even if an 
+argument does not have a help string.
 
 - `formaters.Formatter`:
 
@@ -220,7 +220,7 @@ and `argparse.RawTextHelpFormatter`.
 
 ## Checkers module
 
-When adding an argument to argparse, it is common to use a lambda through the `type` parameter of `add_argrument` to 
+When adding an argument to argparse, it is common to use a lambda through the `type` parameter of `add_argument` to 
 evaluate the argument given as input. Checkers are simply a set of functions that can be used in these lambdas to 
 check arguments at the parsing stage. Among other things, they can be used to specify constraints on numbers, to 
 standardize inputs (useful for paths, for example) or to evaluate strings as other objects. 
