@@ -66,7 +66,7 @@ class Parser:
     """
     Abstract class for creating parsers.
     """
-    def __init__(self, arg_string: str, verbose: bool = False, prefix_chars: Optional[str] = None):
+    def __init__(self, verbose: bool = False, prefix_chars: Optional[str] = None):
         """
         The idea behind this class is to allow you to specify a particular configuration to be read from data files via
         the `fromfile_prefix_chars` option of argparse.
@@ -77,11 +77,29 @@ class Parser:
         If no configuration is specified, the parser will return the arguments declared outside configurations,
         and possibly those of the `default` configuration if this one is specified in the file.
 
-        :param arg_string: string given by ArgparseConfig._read_args_from_files
         :param verbose: if true, print filename and config
         :param prefix_chars: string of len 1, if None, use arg_string[0] as prefix_chars
         """
-        self.prefix_chars = arg_string[0] if prefix_chars is None else prefix_chars[0]
+        self.verbose = verbose
+        self.base_prefix_chars = prefix_chars
+
+        # attributes declaration
+        self.prefix_chars = ""
+        self.filename = ""
+        self.config = {}
+        self.ret_strings = []
+
+    def _parse(self):
+        pass
+
+    def parser(self, arg_string: str) -> List[str]:
+        """
+        Method to give to ArgparseConfig (file_parser=Parser(...).parser)
+
+        :param arg_string: string given by ArgparseConfig._read_args_from_files
+        :return: List of arguments (strings)
+        """
+        self.prefix_chars = arg_string[0] if self.base_prefix_chars is None else self.base_prefix_chars[0]
         self.filename = arg_string[1:]
         self.config = {"default": True}
         self.ret_strings = []
@@ -90,14 +108,16 @@ class Parser:
             self.filename, *config = self.filename.split(self.prefix_chars)
             self.config = {c: False for c in config}
 
-        if verbose:
-            print("Reading args from '{}' with config '{}'".format(self.filename, list(self.config.keys())))
+        if self.verbose:
+            config = ", ".join(list(self.config.keys()))
+            print("Reading args from '{}' with config '{}'".format(self.filename, config))
 
-    def get_args(self) -> List[str]:
-        """ Test if the required config as been found during parsing and return the result of the parsing """
+        self._parse()
+
         if not all(valid for valid in self.config.values()):
             missing = ", ".join([k for k, v in self.config.items() if not v])
             raise argparse.ArgumentTypeError("Required config: '{}' not found in '{}'".format(missing, self.filename))
+
         return self.ret_strings
 
 
@@ -109,17 +129,16 @@ class ParserJson(Parser):
     example: `"@config1": ...`. Any data outside a configuration will be used, and any data in one of the configurations
     given as an argument will also be used. Data in an unspecified configuration will therefore be ignored.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def _parse(self):
         try:
             with open(self.filename) as json_file:
                 json_content = json.load(json_file)
         except json.decoder.JSONDecodeError:
             raise argparse.ArgumentTypeError("Error while reading json config from '{}'".format(self.filename))
 
-        self.parse_element(json_content)
+        self._parse_element(json_content)
 
-    def parse_element(self, element):
+    def _parse_element(self, element):
         """ Parse an element of the json file
 
         :param element: Could be a dict, a list or a simple type (number, bool, string, none)
@@ -129,27 +148,16 @@ class ParserJson(Parser):
                 if k[0] == self.prefix_chars:
                     config_name = k[1:].strip()
                     if config_name in self.config:
-                        self.parse_element(v)
+                        self._parse_element(v)
                         self.config[config_name] = True
                 else:
                     self.ret_strings.append(k)
-                    self.parse_element(v)
+                    self._parse_element(v)
         elif isinstance(element, list):
             for v in element:
-                self.parse_element(v)
+                self._parse_element(v)
         else:
             self.ret_strings += [str(element)]
-
-
-def json_config_parser(arg_string: str, verbose: bool = False, prefix_chars: Optional[str] = None) -> List[str]:
-    """ Encapsulate the ParserJson in a simple function.
-
-    :param arg_string: string given by ArgparseConfig._read_args_from_files
-    :param verbose: if true, print filename and config
-    :param prefix_chars: string of len 1, if None, use arg_string[0] as prefix_chars
-    :return: List of arguments (strings)
-    """
-    return ParserJson(arg_string, verbose=verbose, prefix_chars=prefix_chars).get_args()
 
 
 class ParserConfig(Parser):
@@ -161,9 +169,7 @@ class ParserConfig(Parser):
     character followed by the configuration name, for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this
     configuration until you reach a new one.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def _parse(self):
         config = None
         with open(self.filename) as config_file:
             for line in filter(None, config_file.read().splitlines()):
@@ -184,14 +190,3 @@ class ParserConfig(Parser):
                 if config is None or config in self.config:
                     for arg in convert_arg_line_to_args(line):
                         self.ret_strings.append(arg)
-
-
-def config_parser(arg_string: str, verbose: bool = False, prefix_chars: Optional[str] = None) -> List[str]:
-    """ Encapsulate the ParserConfig in a simple function.
-
-    :param arg_string: string given by ArgparseConfig._read_args_from_files
-    :param verbose: if true, print filename and config
-    :param prefix_chars: string of len 1, if None, use arg_string[0] as prefix_chars
-    :return: List of arguments (strings)
-    """
-    return ParserConfig(arg_string, verbose=verbose, prefix_chars=prefix_chars).get_args()

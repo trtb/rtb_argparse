@@ -2,18 +2,16 @@
 
 ## Introduction
 
-A simple solution to enable argparse to read your data from any file format (json, txt ...). The only constraint is to 
-define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
+`rtb_argparse` is a solution to enable argparse to read your data from any file format (json, txt ...). The only 
+constraint is to define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
 
-To illustrate this, a small example using the parser `json_config_parser` provided by the library:
-
-We start by declaring our parser as we're used to with argparse, but including our file parser 
-(`file_parser=json_config_parser`):
+To illustrate this, here's an example using the `json_config_parser` parser provided by the library. We start by 
+declaring our parser as we're used to with argparse, but including our file parser (`file_parser=json_config_parser`):
 
 ```python
-from rtb_argparse.config import ArgparseConfig, json_config_parser
+from rtb_argparse.config import ArgparseConfig, ParserJson
 
-parser = ArgparseConfig(fromfile_prefix_chars="@", file_parser=json_config_parser)
+parser = ArgparseConfig(fromfile_prefix_chars="@", file_parser=ParserJson().parser)
 parser.add_argument('arg1', type=str)
 parser.add_argument("--foo", type=str)
 parser.add_argument("--name", type=str)
@@ -133,8 +131,8 @@ To use it, simply give it as an argument to our parser:
 ```
 
 ```python
-from trtb_argparse.config import ArgparseConfig
-parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=json_file_parser)
+from rtb_argparse.config import ArgparseConfig, ParserJson
+parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=ParserJson(verbose=True).parser)
 parser.add_argument('--foo', type=str)
 parser.add_argument('--numbers', type=int, nargs='+')
 parser.add_argument('--fii', type=str)
@@ -162,7 +160,7 @@ character (if not specified, it defaults to `fromfile_prefix_chars`), for exampl
 If no configuration is specified, the parser will return the arguments declared outside configurations, and possibly 
 those of the `default` configuration if this one is specified in the file.
 
-- `config.config_parser`
+- `config.ParserConfig().parser`
 
 Here we start with the same logic as for `config.default_file_parser`, but we are adding the possibility of specifying 
 configurations via an argument. A configuration in the file is declared when a line begins with the `prefix_chars` 
@@ -180,7 +178,7 @@ arg3_default
 @conf1 arg2_conf1 -v
 ```
 
-- `config.json_config_parser`: 
+- `config.ParserJson().parser`: 
 
 This is a parser for the json format which transforms all file data into string arguments.
 
