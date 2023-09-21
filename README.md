@@ -2,8 +2,12 @@
 
 ## Introduction
 
-`rtb_argparse` is a solution enabling argparse to use `fromfile_prefix_chars` on any file format (json, txt ...). The 
-only constraint is to define the parser for your file and give it to `ArgparseConfig`, which extends Argparse.
+`rtb_argparse` proposes a new class derived from argparse: `ArgparseConfig`. 
+
+This class lets you read arguments from any file format (json, yaml, txt ...) using the `fromfile_prefix_chars` option. The only constraint is to define the parser of your file and give it to `ArgparseConfig`.
+
+Through the definition of the file parsing function, the library offers a new way of managing configurations by adding 
+the possibility of specifying a sub-configuration to be read from a file with the following syntax: `@myfile@conf1`
 
 The library consists of 3 modules:
 - [Config Module](#config-module): `ArgparseConfig` and already defined parsers for json and txt formats
