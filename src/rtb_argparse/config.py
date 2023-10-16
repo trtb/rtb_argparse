@@ -1,30 +1,30 @@
 import sys as _sys
 import argparse
-import json
-from typing import List, Optional, Callable, Generator
+from typing import List, Optional, Generator
 
 
 """ ArgparseConfig and default_file_parser """
 
 
-def convert_arg_line_to_args(arg_line: str) -> Generator[str, None, None]:
-    # see https://docs.python.org/3.3/library/argparse.html#argparse.ArgumentParser.convert_arg_line_to_args
-    for arg in arg_line.split():
-        if not arg.strip():
-            continue
-        yield arg
+class AbstractParser(object):
+    def parse(self, arg_string: str) -> List:
+        pass
 
 
-def default_file_parser(arg_string: str) -> List[str]:
+class DefaultParser(AbstractParser):
     """
-    Opens the file arg_string[1:] and splits the content into arguments (split performed on spaces and line breaks).
+    Opens the file arg_string[1:] and splits the content into arguments, equivalent to ArgumentParser standard behavior.
     """
-    ret_strings = []
-    with open(arg_string[1:]) as args_file:
-        for arg_line in args_file.read().splitlines():
-            for arg in convert_arg_line_to_args(arg_line):
-                ret_strings.append(arg)
-    return ret_strings
+    def parse(self, arg_string: str) -> List:
+        ret_strings = []
+        with open(arg_string[1:]) as args_file:
+            for arg_line in args_file.read().splitlines():
+                for arg in self.convert_arg_line_to_args(arg_line):
+                    ret_strings.append(arg)
+        return ret_strings
+
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        return [arg_line]
 
 
 class ArgparseConfig(argparse.ArgumentParser):
@@ -32,9 +32,9 @@ class ArgparseConfig(argparse.ArgumentParser):
     Inherited from the class argparse.ArgumentParser, overwrites the method _read_args_from_files to use
     an exterior function for file parsing.
     """
-    def __init__(self, file_parser: Callable[[str], List[str]] = default_file_parser, **kwargs):
+    def __init__(self, file_parser: Optional[AbstractParser] = None, **kwargs):
         super().__init__(**kwargs)
-        self.file_parser = file_parser
+        self.file_parser = file_parser if file_parser is not None else DefaultParser()
 
     def _read_args_from_files(self, arg_strings):
         # expand arguments referencing files
@@ -42,13 +42,13 @@ class ArgparseConfig(argparse.ArgumentParser):
         for arg_string in arg_strings:
 
             # for regular arguments, just add them back into the list
-            if not arg_string or arg_string[0] not in self.fromfile_prefix_chars:
+            if not arg_string or not isinstance(arg_string, str) or arg_string[0] not in self.fromfile_prefix_chars:
                 new_arg_strings.append(arg_string)
 
             # replace arguments referencing files with the file content
             else:
                 try:
-                    arg_strings = self.file_parser(arg_string)
+                    arg_strings = self.file_parser.parse(arg_string)
                     arg_strings = self._read_args_from_files(arg_strings)
                     new_arg_strings.extend(arg_strings)
                 except OSError:
@@ -58,11 +58,69 @@ class ArgparseConfig(argparse.ArgumentParser):
         # return the modified argument list
         return new_arg_strings
 
+    def _parse_optional(self, arg_string):
+        # if it's an empty string, it was meant to be a positional
+        if not arg_string or not isinstance(arg_string, str):
+            return None
+
+        # if it doesn't start with a prefix, it was meant to be positional
+        if not arg_string[0] in self.prefix_chars:
+            return None
+
+        # if the option string is present in the parser, return the action
+        if arg_string in self._option_string_actions:
+            action = self._option_string_actions[arg_string]
+            return action, arg_string, None
+
+        # if it's just a single character, it was meant to be positional
+        if len(arg_string) == 1:
+            return None
+
+        # if the option string before the "=" is present, return the action
+        if '=' in arg_string:
+            option_string, explicit_arg = arg_string.split('=', 1)
+            if option_string in self._option_string_actions:
+                action = self._option_string_actions[option_string]
+                return action, option_string, explicit_arg
+
+        # search through all possible prefixes of the option string
+        # and all actions in the parser for possible interpretations
+        option_tuples = self._get_option_tuples(arg_string)
+
+        # if multiple actions match, the option string was ambiguous
+        if len(option_tuples) > 1:
+            options = ', '.join([option_string
+                for action, option_string, explicit_arg in option_tuples])
+            args = {'option': arg_string, 'matches': options}
+            msg = _('ambiguous option: %(option)s could match %(matches)s')
+            self.error(msg % args)
+
+        # if exactly one action matched, this segmentation is good,
+        # so return the parsed action
+        elif len(option_tuples) == 1:
+            option_tuple, = option_tuples
+            return option_tuple
+
+        # if it was not found as an option, but it looks like a negative
+        # number, it was meant to be positional
+        # unless there are negative-number-like options
+        if self._negative_number_matcher.match(arg_string):
+            if not self._has_negative_number_optionals:
+                return None
+
+        # if it contains a space, it was meant to be a positional
+        if ' ' in arg_string:
+            return None
+
+        # it was meant to be an optional but there is no such option
+        # in this parser (though it might be a valid option in a subparser)
+        return None, arg_string, None
+
 
 """ Parsers """
 
 
-class Parser:
+class AbstractConfigParser(AbstractParser):
     """
     Abstract class for creating parsers.
     """
@@ -89,55 +147,6 @@ class Parser:
         self.config = {}
         self.ret_strings = []
 
-    def _parse(self):
-        pass
-
-    def parser(self, arg_string: str) -> List[str]:
-        """
-        Method to give to ArgparseConfig (file_parser=Parser(...).parser)
-
-        :param arg_string: string given by ArgparseConfig._read_args_from_files
-        :return: List of arguments (strings)
-        """
-        self.prefix_chars = arg_string[0] if self.base_prefix_chars is None else self.base_prefix_chars[0]
-        self.filename = arg_string[1:]
-        self.config = {"default": True}
-        self.ret_strings = []
-
-        if self.prefix_chars in self.filename:
-            self.filename, *config = self.filename.split(self.prefix_chars)
-            self.config = {c: False for c in config}
-
-        if self.verbose:
-            config = ", ".join(list(self.config.keys()))
-            print("Reading args from '{}' with config '{}'".format(self.filename, config))
-
-        self._parse()
-
-        if not all(valid for valid in self.config.values()):
-            missing = ", ".join([k for k, v in self.config.items() if not v])
-            raise argparse.ArgumentTypeError("Required config: '{}' not found in '{}'".format(missing, self.filename))
-
-        return self.ret_strings
-
-
-class ParserJson(Parser):
-    """
-    Parse json file using Parser
-
-    Configurations are declared in the json by a key / value pair, where the key is `<prefix_chars><config_name>`, for
-    example: `"@config1": ...`. Any data outside a configuration will be used, and any data in one of the configurations
-    given as an argument will also be used. Data in an unspecified configuration will therefore be ignored.
-    """
-    def _parse(self):
-        try:
-            with open(self.filename) as json_file:
-                json_content = json.load(json_file)
-        except json.decoder.JSONDecodeError:
-            raise argparse.ArgumentTypeError("Error while reading json config from '{}'".format(self.filename))
-
-        self._parse_element(json_content)
-
     def _parse_element(self, element):
         """ Parse an element of the json file
 
@@ -159,8 +168,79 @@ class ParserJson(Parser):
         else:
             self.ret_strings += [str(element)]
 
+    def _load_and_parse(self):
+        pass
 
-class ParserConfig(Parser):
+    def parse(self, arg_string: str) -> List:
+        """
+        Method to give to ArgparseConfig (file_parser=Parser(...).parser)
+
+        :param arg_string: string given by ArgparseConfig._read_args_from_files
+        :return: List of arguments (strings)
+        """
+        self.prefix_chars = arg_string[0] if self.base_prefix_chars is None else self.base_prefix_chars[0]
+        self.filename = arg_string[1:]
+        self.config = {"default": True}
+        self.ret_strings = []
+
+        if self.prefix_chars in self.filename:
+            self.filename, *config = self.filename.split(self.prefix_chars)
+            self.config = {c: False for c in config}
+
+        if self.verbose:
+            config = ", ".join(list(self.config.keys()))
+            print("Reading args from '{}' with config '{}'".format(self.filename, config))
+
+        self._load_and_parse()
+
+        if not all(valid for valid in self.config.values()):
+            missing = ", ".join([k for k, v in self.config.items() if not v])
+            raise argparse.ArgumentTypeError("Required config: '{}' not found in '{}'".format(missing, self.filename))
+
+        return self.ret_strings
+
+
+class JsonParser(AbstractConfigParser):
+    """
+    Parse json file using Parser
+
+    Configurations are declared in the json by a key / value pair, where the key is `<prefix_chars><config_name>`, for
+    example: `"@config1": ...`. Any data outside a configuration will be used, and any data in one of the configurations
+    given as an argument will also be used. Data in an unspecified configuration will therefore be ignored.
+    """
+
+    def _load_and_parse(self):
+        import json
+        try:
+            with open(self.filename) as json_file:
+                json_content = json.load(json_file)
+        except json.decoder.JSONDecodeError:
+            raise argparse.ArgumentTypeError("Error while reading json config from '{}'".format(self.filename))
+
+        self._parse_element(json_content)
+
+
+class YamlParser(AbstractConfigParser):
+    """
+    Parse json file using Parser
+
+    Configurations are declared in the json by a key / value pair, where the key is `<prefix_chars><config_name>`, for
+    example: `"@config1": ...`. Any data outside a configuration will be used, and any data in one of the configurations
+    given as an argument will also be used. Data in an unspecified configuration will therefore be ignored.
+    """
+
+    def _load_and_parse(self):
+        import yaml
+        try:
+            with open(self.filename) as yaml_file:
+                yaml_content = yaml.safe_load(yaml_file)
+        except yaml.YAMLError:
+            raise argparse.ArgumentTypeError("Error while reading json config from '{}'".format(self.filename))
+
+        self._parse_element(yaml_content)
+
+
+class ConfigParser(AbstractConfigParser):
     """
     Parse simple txt file using Parser.
 
@@ -169,7 +249,7 @@ class ParserConfig(Parser):
     character followed by the configuration name, for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this
     configuration until you reach a new one.
     """
-    def _parse(self):
+    def _load_and_parse(self):
         config = None
         with open(self.filename) as config_file:
             for line in filter(None, config_file.read().splitlines()):
@@ -188,5 +268,12 @@ class ParserConfig(Parser):
 
                 # Read argument from the config
                 if config is None or config in self.config:
-                    for arg in convert_arg_line_to_args(line):
+                    for arg in self.convert_arg_line_to_args(line):
                         self.ret_strings.append(arg)
+
+    def convert_arg_line_to_args(self, arg_line: str) -> Generator[str, None, None]:
+        # see https://docs.python.org/3.3/library/argparse.html#argparse.ArgumentParser.convert_arg_line_to_args
+        for arg in arg_line.split():
+            if not arg.strip():
+                continue
+            yield arg

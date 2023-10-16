@@ -4,26 +4,27 @@
 
 `rtb_argparse` proposes a new class derived from argparse: `ArgparseConfig`. 
 
-This class lets you read arguments from any file format (json, yaml, txt ...) using the `fromfile_prefix_chars` option. The only constraint is to define the parser of your file and give it to `ArgparseConfig`.
+This class lets you read arguments from any file format (json, yaml, txt ...) using the `fromfile_prefix_chars` option. 
+The only constraint is to define the parser of your file and give it to `ArgparseConfig`.
 
-Through the definition of the file parsing function, the library offers a new way of managing configurations by adding 
+Through the definition of the file parsing class, the library offers a new way of managing configurations by adding 
 the possibility of specifying a sub-configuration to be read from a file with the following syntax: `@myfile@conf1`
 
 The library consists of 3 modules:
-- [Config Module](#config-module): `ArgparseConfig` and already defined parsers for json and txt formats
+- [Config Module](#config-module): `ArgparseConfig` and already defined parser classes for json and txt formats
 - [Formatters Module](#formatters-module): New formatters for argparse
 - [Checkers Module](#checkers-module): Functions to evaluate the input of an argument threw `type` parameter
 
 ## Simple example
 
-To illustrate how `ArgparseConfig` works, here's an example using the `ParserJson().parser` provided by the library. 
+To illustrate how `ArgparseConfig` works, here's an example using the `JsonParser()` provided by the library. 
 We start by declaring our parser as we're used to with argparse, but including our json parser 
-(`file_parser=ParserJson().parser`):
+(`file_parser=JsonParser()`):
 
 ```python
-from rtb_argparse.config import ArgparseConfig, ParserJson
+from rtb_argparse.config import ArgparseConfig, JsonParser
 
-parser = ArgparseConfig(fromfile_prefix_chars="@", file_parser=ParserJson().parser)
+parser = ArgparseConfig(fromfile_prefix_chars="@", file_parser=JsonParser())
 parser.add_argument('arg1', type=str)
 parser.add_argument("--foo", type=str)
 parser.add_argument("--name", type=str)
@@ -50,7 +51,7 @@ print(opt.arg1, opt.foo, opt.name)
 ```
 
 Since we can define the behaviors we want when parsing the file, we can do a bit more complex things, for example let's 
-see what `ParserJson().parser` can do with this file:
+see what `JsonParser()` can do with this file:
 
 ```json
 [
@@ -109,27 +110,30 @@ pip install -e .
 `file_parser` argument to argparse which defines a parser for the files given as arguments 
 via the `fromfile_prefix_chars` parameter.
 
-The parser must be a function that takes a file name as input, and returns a list of strings as output. For example, 
+The parser must be a class implementing a method `parse` which takes a file name as input, and returns a list as 
+output (string, number ...). The easiest way is to implement a class inheriting from `AbstractParser`, for example 
 you can create a parser for simple json files: 
 
 ```python
+from rtb_argparse.config import AbstractParser
 import json
 
-def json_file_parser(arg_string):
-    with open(arg_string[1:]) as json_file:
-        content = json.load(json_file)
-    
-    ret_strings = []
-    for k, values in content.items():
-        ret_strings.append(k)
-        for v in values if isinstance(values, list) else [values]:
-            ret_strings.append(str(v))
-    return ret_strings
+class Parser(AbstractParser):
+    def parse(self, arg_string: str):
+        with open(arg_string[1:]) as json_file:
+            content = json.load(json_file)
+
+        ret_strings = []
+        for k, values in content.items():
+            ret_strings.append(k)
+            for v in values if isinstance(values, list) else [values]:
+                ret_strings.append(str(v))
+        return ret_strings
 ```
 
 To use it, simply give it as an argument to our parser:
 
-- test.json:
+- config_test.json:
 ```json
 {
    "--numbers": [0, 1, 2, 3],
@@ -138,12 +142,13 @@ To use it, simply give it as an argument to our parser:
 ```
 
 ```python
-from rtb_argparse.config import ArgparseConfig, ParserJson
-parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=ParserJson(verbose=True).parser)
+from rtb_argparse.config import ArgparseConfig
+
+parser = ArgparseConfig(fromfile_prefix_chars='@', file_parser=Parser())
 parser.add_argument('--foo', type=str)
 parser.add_argument('--numbers', type=int, nargs='+')
 parser.add_argument('--fii', type=str)
-opt = parser.parse_args(["--foo", "hello", "@test.json"])
+opt = parser.parse_args(["--foo", "hello", "@config_test.json"])
 
 print(opt.foo, opt.fii, opt.numbers)
 >> hello world! [0, 1, 2, 3]
@@ -151,10 +156,10 @@ print(opt.foo, opt.fii, opt.numbers)
 
 ### Implemented parsers
 
-- `config.default_file_parser`:
+- `config.DefaultParser`:
 
-This parser reuses the traditional argparse code for reading arguments from a file, modifying the 
-`convert_arg_line_to_args` function so that it splits arguments on spaces (default behavior) but also on new lines.
+This parser reuses the traditional argparse code for reading arguments from a file, using the 
+`convert_arg_line_to_args` function so that it splits arguments on spaces.
 This is the default parser used by the class `ArgparseConfig`.
 
 ### Implemented config parsers
@@ -167,12 +172,11 @@ character (if not specified, it defaults to `fromfile_prefix_chars`), for exampl
 If no configuration is specified, the parser will return the arguments declared outside configurations, and possibly 
 those of the `default` configuration if this one is specified in the file.
 
-- `config.ParserConfig().parser`
+- `config.ConfigParser()`
 
-Here we start with the same logic as for `config.default_file_parser`, but we are adding the possibility of specifying 
-configurations via an argument. A configuration in the file is declared when a line begins with the `prefix_chars` 
-character followed by the configuration name, for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this 
-configuration until you reach a new one.
+This parser separates incoming file arguments on spaces and line breaks. A configuration in the file is declared when 
+a line begins with the `prefix_chars` character followed by the configuration name, 
+for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this configuration until you reach a new one.
 
 Example of accepted file:
 ```txt
@@ -185,7 +189,7 @@ arg3_default
 @conf1 arg2_conf1 -v
 ```
 
-- `config.ParserJson().parser`: 
+- `config.JsonParser()`: 
 
 This is a parser for the json format which transforms all file data into string arguments.
 
