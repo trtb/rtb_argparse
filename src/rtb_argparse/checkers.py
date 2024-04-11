@@ -48,6 +48,20 @@ def check_strictly_inferior(value: Number, ref: Number):
     return value
 
 
+def check_between(value: Number, inferior: Number, superior: Number):
+    """ assert inferior <= value <= superior """
+    if value < inferior or value > superior:
+        raise argparse.ArgumentTypeError("{} is not between {} and {}".format(value, inferior, superior))
+    return value
+
+
+def check_strictly_between(value: Number, inferior: Number, superior: Number):
+    """ assert inferior < value < superior """
+    if value <= inferior or value >= superior:
+        raise argparse.ArgumentTypeError("{} is not strictly between {} and {}".format(value, inferior, superior))
+    return value
+
+
 def check_is_file(filename: str) -> str:
     """ assert file path exists """
     if not os.path.isfile(filename):
