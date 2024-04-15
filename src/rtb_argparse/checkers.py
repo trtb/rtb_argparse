@@ -22,42 +22,42 @@ def do_literal_eval(value: str):
 
 def check_superior(value: Number, ref: Number):
     """ assert value >= ref"""
-    if value < ref:
+    if not value >= ref:
         raise argparse.ArgumentTypeError("{} is not superior to {}".format(value, ref))
     return value
 
 
 def check_inferior(value: Number, ref: Number):
     """ assert value <= ref"""
-    if value > ref:
+    if not value <= ref:
         raise argparse.ArgumentTypeError("{} is not inferior to {}".format(value, ref))
     return value
 
 
 def check_strictly_superior(value: Number, ref: Number):
     """ assert value > ref"""
-    if value < ref:
+    if not value > ref:
         raise argparse.ArgumentTypeError("{} is not strictly superior to {}".format(value, ref))
     return value
 
 
 def check_strictly_inferior(value: Number, ref: Number):
     """ assert value < ref"""
-    if value < ref:
+    if not value < ref:
         raise argparse.ArgumentTypeError("{} is not strictly inferior to {}".format(value, ref))
     return value
 
 
 def check_between(value: Number, inferior: Number, superior: Number):
     """ assert inferior <= value <= superior """
-    if value < inferior or value > superior:
+    if not inferior <= value <= superior:
         raise argparse.ArgumentTypeError("{} is not between {} and {}".format(value, inferior, superior))
     return value
 
 
 def check_strictly_between(value: Number, inferior: Number, superior: Number):
     """ assert inferior < value < superior """
-    if value <= inferior or value >= superior:
+    if not inferior < value < superior:
         raise argparse.ArgumentTypeError("{} is not strictly between {} and {}".format(value, inferior, superior))
     return value
 
