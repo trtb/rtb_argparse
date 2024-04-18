@@ -2,7 +2,6 @@ import sys as _sys
 import argparse
 from typing import List, Optional, Generator
 
-
 """ ArgparseConfig and default_file_parser """
 
 
@@ -15,9 +14,12 @@ class DefaultParser(AbstractParser):
     """
     Opens the file arg_string[1:] and splits the content into arguments, equivalent to ArgumentParser standard behavior.
     """
+
     def parse(self, arg_string: str) -> List:
         ret_strings = []
-        with open(arg_string[1:]) as args_file:
+        with open(arg_string[1:],
+                  encoding=_sys.getfilesystemencoding(),
+                  errors=_sys.getfilesystemencodeerrors()) as args_file:
             for arg_line in args_file.read().splitlines():
                 for arg in self.convert_arg_line_to_args(arg_line):
                     ret_strings.append(arg)
@@ -32,6 +34,7 @@ class ArgparseConfig(argparse.ArgumentParser):
     Inherited from the class argparse.ArgumentParser, overwrites the method _read_args_from_files to use
     an exterior function for file parsing.
     """
+
     def __init__(self, file_parser: Optional[AbstractParser] = None, **kwargs):
         super().__init__(**kwargs)
         self.file_parser = file_parser if file_parser is not None else DefaultParser()
@@ -59,62 +62,9 @@ class ArgparseConfig(argparse.ArgumentParser):
         return new_arg_strings
 
     def _parse_optional(self, arg_string):
-        # if it's an empty string, it was meant to be a positional
-        if not arg_string or not isinstance(arg_string, str):
+        if not isinstance(arg_string, str):
             return None
-
-        # if it doesn't start with a prefix, it was meant to be positional
-        if not arg_string[0] in self.prefix_chars:
-            return None
-
-        # if the option string is present in the parser, return the action
-        if arg_string in self._option_string_actions:
-            action = self._option_string_actions[arg_string]
-            return action, arg_string, None
-
-        # if it's just a single character, it was meant to be positional
-        if len(arg_string) == 1:
-            return None
-
-        # if the option string before the "=" is present, return the action
-        if '=' in arg_string:
-            option_string, explicit_arg = arg_string.split('=', 1)
-            if option_string in self._option_string_actions:
-                action = self._option_string_actions[option_string]
-                return action, option_string, explicit_arg
-
-        # search through all possible prefixes of the option string
-        # and all actions in the parser for possible interpretations
-        option_tuples = self._get_option_tuples(arg_string)
-
-        # if multiple actions match, the option string was ambiguous
-        if len(option_tuples) > 1:
-            options = ', '.join([option_string
-                for action, option_string, explicit_arg in option_tuples])
-            args = {'option': arg_string, 'matches': options}
-            msg = _('ambiguous option: %(option)s could match %(matches)s')
-            self.error(msg % args)
-
-        # if exactly one action matched, this segmentation is good,
-        # so return the parsed action
-        elif len(option_tuples) == 1:
-            option_tuple, = option_tuples
-            return option_tuple
-
-        # if it was not found as an option, but it looks like a negative
-        # number, it was meant to be positional
-        # unless there are negative-number-like options
-        if self._negative_number_matcher.match(arg_string):
-            if not self._has_negative_number_optionals:
-                return None
-
-        # if it contains a space, it was meant to be a positional
-        if ' ' in arg_string:
-            return None
-
-        # it was meant to be an optional but there is no such option
-        # in this parser (though it might be a valid option in a subparser)
-        return None, arg_string, None
+        return super()._parse_optional(arg_string)
 
 
 """ Parsers """
@@ -124,6 +74,7 @@ class AbstractConfigParser(AbstractParser):
     """
     Abstract class for creating parsers.
     """
+
     def __init__(self, verbose: bool = False, prefix_chars: Optional[str] = None):
         """
         The idea behind this class is to allow you to specify a particular configuration to be read from data files via
@@ -249,6 +200,7 @@ class ConfigParser(AbstractConfigParser):
     character followed by the configuration name, for example: `@conf1 arg1 arg2 \n arg3 ...`. You then remain in this
     configuration until you reach a new one.
     """
+
     def _load_and_parse(self):
         config = None
         with open(self.filename) as config_file:
